@@ -2,7 +2,7 @@ import * as path from 'path';
 import { expect } from 'chai';
 
 import { Module, Walker } from '../src/Walker';
-import { DepType } from '../src/depTypes';
+import { DepType, DepRequireState } from '../src/depTypes';
 import { NativeModuleType } from '../src/nativeModuleTypes';
 
 async function buildWalker(modulePath: string): Promise<Module[]> {
@@ -27,19 +27,23 @@ describe('Walker', () => {
     });
 
     it('should locate top level prod deps as prod deps', () => {
-      expect(dep('fs-extra')).to.have.property('depType', DepType.PROD);
+      expect(dep('fs-extra').relationship.getType()).equal(DepType.PROD);
+      expect(dep('fs-extra').relationship.getRequired()).equal(DepRequireState.REQUIRED);
     });
 
     it('should locate top level dev deps as dev deps', () => {
-      expect(dep('mocha')).to.have.property('depType', DepType.DEV);
+      expect(dep('mocha').relationship.getType()).equal(DepType.DEV);
+      expect(dep('mocha').relationship.getRequired()).equal(DepRequireState.REQUIRED);
     });
 
     it('should locate a dep of a dev dep as a dev dep', () => {
-      expect(dep('yargs')).to.have.property('depType', DepType.DEV);
+      expect(dep('yargs').relationship.getType()).equal(DepType.DEV);
+      expect(dep('yargs').relationship.getRequired()).equal(DepRequireState.REQUIRED);
     });
 
     it('should locate a dep of a dev dep that is also a top level prod dep as a prod dep', () => {
-      expect(dep('debug')).to.have.property('depType', DepType.PROD);
+      expect(dep('debug').relationship.getType()).equal(DepType.PROD);
+      expect(dep('debug').relationship.getRequired()).equal(DepRequireState.REQUIRED);
     });
 
     it('should locate a dep of a dev dep that is optional as a dev_optional dep', function () {
@@ -47,7 +51,8 @@ describe('Walker', () => {
         this.skip();
         return;
       }
-      expect(dep('fsevents')).to.have.property('depType', DepType.DEV_OPTIONAL);
+      expect(dep('fsevents').relationship.getType()).to.equal(DepType.DEV);
+      expect(dep('fsevents').relationship.getRequired()).to.equal(DepRequireState.OPTIONAL);
     });
   });
 
@@ -105,5 +110,4 @@ describe('Walker', () => {
       expect(expectedDev).to.have.property('depType', DepType.DEV);
       expect(expectedOptional).to.have.property('depType', DepType.OPTIONAL);
     });
-  });
 });
