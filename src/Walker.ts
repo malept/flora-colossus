@@ -2,7 +2,13 @@ import * as debug from 'debug';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
-import { DepType, depTypeGreater, childDepType } from './depTypes';
+import {
+  DepType,
+  DepRequireState,
+  depRelationshipGreater,
+  childRequired,
+  DepRelationship,
+} from './depTypes';
 import { NativeModuleType } from './nativeModuleTypes';
 
 export type VersionRange = string;
@@ -14,7 +20,7 @@ export interface PackageJSON {
 }
 export interface Module {
   path: string;
-  depType: DepType;
+  relationship: DepRelationship;
   nativeModuleType: NativeModuleType;
   name: string;
 }
@@ -55,7 +61,7 @@ export class Walker {
   private async walkDependenciesForModuleInModule(
     moduleName: string,
     modulePath: string,
-    depType: DepType
+    relationship: DepRelationship
   ): Promise<void> {
     let testPath = modulePath;
     let discoveredPath: string | null = null;
@@ -78,8 +84,7 @@ export class Walker {
     // If we can't find it the install is probably buggered
     if (
       !discoveredPath &&
-      depType !== DepType.OPTIONAL &&
-      depType !== DepType.DEV_OPTIONAL
+      relationship.getRequired() !== DepRequireState.OPTIONAL
     ) {
       throw new Error(
         `Failed to locate module "${moduleName}" from "${modulePath}"
@@ -89,7 +94,7 @@ export class Walker {
     }
     // If we can find it let's do the same thing for that module
     if (discoveredPath) {
-      await this.walkDependenciesForModule(discoveredPath, depType);
+      await this.walkDependenciesForModule(discoveredPath, relationship);
     }
   }
 
@@ -107,9 +112,9 @@ export class Walker {
 
   private async walkDependenciesForModule(
     modulePath: string,
-    depType: DepType
+    relationship: DepRelationship
   ): Promise<void> {
-    d('walk reached:', modulePath, ' Type is:', DepType[depType]);
+    d('walk reached:', modulePath, ' Type is:', relationship.toString());
     // We have already traversed this module
     if (this.walkHistory.has(modulePath)) {
       d('already walked this route');
@@ -117,13 +122,13 @@ export class Walker {
       const existingModule = this.modules.find(
         (module) => module.path === modulePath
       ) as Module;
-      // If the depType we are traversing with now is higher than the
+      // If the relationship we are traversing with now is higher than the
       // last traversal then update it (prod superseeds dev for instance)
-      if (depTypeGreater(depType, existingModule.depType)) {
+      if (depRelationshipGreater(relationship, existingModule.relationship)) {
         d(
-          `existing module has a type of "${existingModule.depType}", new module type would be "${depType}" therefore updating`
+          `existing module has a type of "${existingModule.relationship.toString()}", new module type would be "${relationship.toString()}" therefore updating`
         );
-        existingModule.depType = depType;
+        existingModule.relationship = relationship;
       }
       return;
     }
@@ -139,11 +144,14 @@ export class Walker {
     // Record this module as being traversed
     this.walkHistory.add(modulePath);
     this.modules.push({
-      depType,
+      relationship,
       nativeModuleType: await this.detectNativeModuleType(modulePath, pJ),
       path: modulePath,
       name: pJ.name,
     });
+
+    const childDepType =
+      relationship.getType() === DepType.DEV ? DepType.DEV : DepType.PROD;
 
     // For every prod dep
     for (const moduleName in pJ.dependencies) {
@@ -158,7 +166,10 @@ export class Walker {
       await this.walkDependenciesForModuleInModule(
         moduleName,
         modulePath,
-        childDepType(depType, DepType.PROD)
+        new DepRelationship(
+          childDepType,
+          childRequired(relationship.getRequired(), DepRequireState.REQUIRED)
+        )
       );
     }
 
@@ -167,18 +178,24 @@ export class Walker {
       await this.walkDependenciesForModuleInModule(
         moduleName,
         modulePath,
-        childDepType(depType, DepType.OPTIONAL)
+        new DepRelationship(
+          childDepType,
+          childRequired(relationship.getRequired(), DepRequireState.OPTIONAL)
+        )
       );
     }
 
     // For every dev dep, but only if we are in the root module
-    if (depType === DepType.ROOT) {
+    if (relationship.getType() === DepType.ROOT) {
       d("we're still at the beginning, walking down the dev route");
       for (const moduleName in pJ.devDependencies) {
         await this.walkDependenciesForModuleInModule(
           moduleName,
           modulePath,
-          childDepType(depType, DepType.DEV)
+          new DepRelationship(
+            DepType.DEV,
+            childRequired(relationship.getRequired(), DepRequireState.REQUIRED)
+          )
         );
       }
     }
@@ -186,7 +203,10 @@ export class Walker {
 
   private async uncachedWalkTree(): Promise<Module[]> {
     this.modules = [];
-    await this.walkDependenciesForModule(this.rootModule, DepType.ROOT);
+    await this.walkDependenciesForModule(
+      this.rootModule,
+      new DepRelationship(DepType.ROOT, DepRequireState.REQUIRED)
+    );
     return this.modules;
   }
 

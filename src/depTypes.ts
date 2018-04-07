@@ -1,10 +1,39 @@
 export enum DepType {
   PROD,
   DEV,
-  OPTIONAL,
-  DEV_OPTIONAL,
   ROOT,
 }
+
+export enum DepRequireState {
+  OPTIONAL,
+  REQUIRED,
+}
+
+export class DepRelationship {
+  constructor(private type: DepType, private required: DepRequireState) {}
+
+  public getType() {
+    return this.type;
+  }
+  public getRequired() {
+    return this.required;
+  }
+  public toString() {
+    return `${DepType[this.getType()]}_${DepRequireState[this.getRequired()]}`;
+  }
+}
+
+export const depRequireStateGreater = (
+  newState: DepRequireState,
+  existing: DepRequireState
+) => {
+  if (existing === DepRequireState.REQUIRED) {
+    return false;
+  } else if (newState === DepRequireState.REQUIRED) {
+    return true;
+  }
+  return false;
+};
 
 export const depTypeGreater = (
   newType: DepType,
@@ -13,34 +42,10 @@ export const depTypeGreater = (
   switch (existing) {
     case DepType.DEV:
       switch (newType) {
-        case DepType.OPTIONAL:
         case DepType.PROD:
         case DepType.ROOT:
           return true;
         case DepType.DEV:
-        case DepType.DEV_OPTIONAL:
-        default:
-          return false;
-      }
-    case DepType.DEV_OPTIONAL:
-      switch (newType) {
-        case DepType.OPTIONAL:
-        case DepType.PROD:
-        case DepType.ROOT:
-        case DepType.DEV:
-          return true;
-        case DepType.DEV_OPTIONAL:
-        default:
-          return false;
-      }
-    case DepType.OPTIONAL:
-      switch (newType) {
-        case DepType.PROD:
-        case DepType.ROOT:
-          return true;
-        case DepType.OPTIONAL:
-        case DepType.DEV:
-        case DepType.DEV_OPTIONAL:
         default:
           return false;
       }
@@ -49,9 +54,7 @@ export const depTypeGreater = (
         case DepType.ROOT:
           return true;
         case DepType.PROD:
-        case DepType.OPTIONAL:
         case DepType.DEV:
-        case DepType.DEV_OPTIONAL:
         default:
           return false;
       }
@@ -59,9 +62,7 @@ export const depTypeGreater = (
       switch (newType) {
         case DepType.ROOT:
         case DepType.PROD:
-        case DepType.OPTIONAL:
         case DepType.DEV:
-        case DepType.DEV_OPTIONAL:
         default:
           return false;
       }
@@ -70,27 +71,32 @@ export const depTypeGreater = (
   }
 };
 
-export const childDepType = (
-  parentType: DepType,
-  childType: DepType
-): DepType => {
-  if (childType === DepType.ROOT) {
-    throw new Error(
-      "Something went wrong, a child dependency can't be marked as the ROOT"
-    );
+export const depRelationshipGreater = (
+  newRelationship: DepRelationship,
+  existingRelationship: DepRelationship
+) => {
+  if (
+    depRequireStateGreater(
+      newRelationship.getRequired(),
+      existingRelationship.getRequired()
+    )
+  ) {
+    return true;
   }
-  switch (parentType) {
-    case DepType.ROOT:
-      return childType;
-    case DepType.PROD:
-      if (childType === DepType.OPTIONAL) return DepType.OPTIONAL;
-      return DepType.PROD;
-    case DepType.OPTIONAL:
-      return DepType.OPTIONAL;
-    case DepType.DEV_OPTIONAL:
-      return DepType.DEV_OPTIONAL;
-    case DepType.DEV:
-      if (childType === DepType.OPTIONAL) return DepType.DEV_OPTIONAL;
-      return DepType.DEV;
+  return depTypeGreater(
+    newRelationship.getType(),
+    existingRelationship.getType()
+  );
+};
+
+export const childRequired = (
+  parent: DepRequireState,
+  child: DepRequireState
+) => {
+  switch (parent) {
+    case DepRequireState.OPTIONAL:
+      return DepRequireState.OPTIONAL;
+    default:
+      return child;
   }
 };
