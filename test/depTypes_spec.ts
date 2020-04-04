@@ -76,7 +76,7 @@ describe('depTypes', () => {
     /**
      * These tests ensure that the method will not modify things that are identical
      */
-    it('should report  OPTIONAL < OPTIONAL', () => {
+    it('should report OPTIONAL is not greater than OPTIONAL', () => {
       expect(depRequireStateGreater(DepRequireState.OPTIONAL, DepRequireState.OPTIONAL)).to.equal(false);
     });
 
