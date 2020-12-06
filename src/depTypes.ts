@@ -75,17 +75,15 @@ export const depRelationshipGreater = (
   newRelationship: DepRelationship,
   existingRelationship: DepRelationship
 ) => {
-  if (
-    depRequireStateGreater(
-      newRelationship.getRequired(),
-      existingRelationship.getRequired()
-    )
-  ) {
-    return true;
-  }
-  return depTypeGreater(
-    newRelationship.getType(),
-    existingRelationship.getType()
+  const newType = newRelationship.getType();
+  const existingType = existingRelationship.getType();
+  return (
+    depTypeGreater(newType, existingType) ||
+    (newType === existingType &&
+      depRequireStateGreater(
+        newRelationship.getRequired(),
+        existingRelationship.getRequired()
+      ))
   );
 };
 
