@@ -15,7 +15,7 @@
     "lint": "prettier --check . && eslint --ext .ts .",
     "prepare": "npm run build",
     "pretest": "cd test/fixtures/xml2js && yarn --frozen-lockfile",
-    "test": "mocha --require ts-node/register test/*_spec.ts"
+    "test": "mocha test/*_spec.ts"
   },
   "dependencies": {
     "debug": "^4.1.1",
@@ -86,6 +86,9 @@
       "prettier --write",
       "eslint --fix"
     ]
+  },
+  "mocha": {
+    "require": "ts-node/register"
   },
   "prettier": {
     "singleQuote": true
