@@ -123,7 +123,7 @@ export class Walker {
         (module) => module.path === modulePath
       ) as Module;
       // If the relationship we are traversing with now is higher than the
-      // last traversal then update it (prod superseeds dev for instance)
+      // last traversal then update it (prod supercedes dev for instance)
       if (depRelationshipGreater(relationship, existingModule.relationship)) {
         d(
           `existing module has a type of "${existingModule.relationship.toString()}", new module type would be "${relationship.toString()}" therefore updating`
