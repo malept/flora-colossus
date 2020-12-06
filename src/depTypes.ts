@@ -12,13 +12,13 @@ export enum DepRequireState {
 export class DepRelationship {
   constructor(private type: DepType, private required: DepRequireState) {}
 
-  public getType() {
+  public getType(): DepType {
     return this.type;
   }
-  public getRequired() {
+  public getRequired(): DepRequireState {
     return this.required;
   }
-  public toString() {
+  public toString(): string {
     return `${DepType[this.getType()]}_${DepRequireState[this.getRequired()]}`;
   }
 }
@@ -26,7 +26,7 @@ export class DepRelationship {
 export const depRequireStateGreater = (
   newState: DepRequireState,
   existing: DepRequireState
-) => {
+): boolean => {
   if (existing === DepRequireState.REQUIRED) {
     return false;
   } else if (newState === DepRequireState.REQUIRED) {
@@ -74,7 +74,7 @@ export const depTypeGreater = (
 export const depRelationshipGreater = (
   newRelationship: DepRelationship,
   existingRelationship: DepRelationship
-) => {
+): boolean => {
   const newType = newRelationship.getType();
   const existingType = existingRelationship.getType();
   return (
@@ -90,7 +90,7 @@ export const depRelationshipGreater = (
 export const childRequired = (
   parent: DepRequireState,
   child: DepRequireState
-) => {
+): DepRequireState => {
   switch (parent) {
     case DepRequireState.OPTIONAL:
       return DepRequireState.OPTIONAL;
