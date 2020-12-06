@@ -10,6 +10,35 @@ async function buildWalker(modulePath: string): Promise<Module[]> {
   return await walker.walkTree();
 }
 
+function expectDepType(expected: DepType, actual: DepType) {
+  expect(expected).to.equal(
+    actual,
+    `Expected ${DepType[expected]}, got ${DepType[actual]}`
+  );
+}
+
+function expectDepRequireState(
+  expected: DepRequireState,
+  actual: DepRequireState
+) {
+  expect(expected).to.equal(
+    actual,
+    `Expected ${DepRequireState[expected]}, got ${DepRequireState[actual]}`
+  );
+}
+
+function expectRelationship(
+  moduleDep: Module | undefined,
+  depType: DepType,
+  depRequireState: DepRequireState
+) {
+  expect(moduleDep).to.have.property('relationship');
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  expectDepType(moduleDep!.relationship.getType(), depType);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  expectDepRequireState(moduleDep!.relationship.getRequired(), depRequireState);
+}
+
 describe('Walker', () => {
   let modules: Module[];
   const thisPackageDir = path.resolve(__dirname, '..');
@@ -22,30 +51,47 @@ describe('Walker', () => {
   });
 
   describe('depType', () => {
+    function expectModuleAndRelationship(
+      moduleName: string,
+      depType: DepType,
+      depRequireState: DepRequireState
+    ) {
+      const moduleDep = dep(moduleName);
+      expectRelationship(moduleDep, depType, depRequireState);
+    }
+
+    beforeEach(async () => {
+      modules = await buildWalker(thisPackageDir);
+    });
+
     it('should locate top level prod deps as required prod deps', () => {
-      expect(dep('fs-extra').relationship.getType()).equal(DepType.PROD);
-      expect(dep('fs-extra').relationship.getRequired()).equal(
+      expectModuleAndRelationship(
+        'fs-extra',
+        DepType.PROD,
         DepRequireState.REQUIRED
       );
     });
 
     it('should locate top level dev deps as required dev deps', () => {
-      expect(dep('mocha').relationship.getType()).equal(DepType.DEV);
-      expect(dep('mocha').relationship.getRequired()).equal(
+      expectModuleAndRelationship(
+        'mocha',
+        DepType.DEV,
         DepRequireState.REQUIRED
       );
     });
 
     it('should locate a dep of a dev dep as a required dev dep', () => {
-      expect(dep('commander').relationship.getType()).equal(DepType.DEV);
-      expect(dep('commander').relationship.getRequired()).equal(
+      expectModuleAndRelationship(
+        'commander',
+        DepType.DEV,
         DepRequireState.REQUIRED
       );
     });
 
     it('should locate a dep of a dev dep that is also a top level prod dep as a required prod dep', () => {
-      expect(dep('debug').relationship.getType()).equal(DepType.PROD);
-      expect(dep('debug').relationship.getRequired()).equal(
+      expectModuleAndRelationship(
+        'debug',
+        DepType.PROD,
         DepRequireState.REQUIRED
       );
     });
@@ -54,8 +100,9 @@ describe('Walker', () => {
       if (process.platform !== 'darwin') {
         this.skip();
       }
-      expect(dep('fsevents').relationship.getType()).to.equal(DepType.DEV);
-      expect(dep('fsevents').relationship.getRequired()).to.equal(
+      expectModuleAndRelationship(
+        'fsevents',
+        DepType.DEV,
         DepRequireState.OPTIONAL
       );
     });
@@ -112,8 +159,12 @@ describe('Walker', () => {
       const expectedOptional = xmlBuilderModules.find(
         (m) => !m.path.includes(deepIdentifier)
       );
-      expect(expectedDev).to.have.property('depType', DepType.DEV);
-      expect(expectedOptional).to.have.property('depType', DepType.OPTIONAL);
+      expectRelationship(expectedDev, DepType.DEV, DepRequireState.REQUIRED);
+      expectRelationship(
+        expectedOptional,
+        DepType.PROD,
+        DepRequireState.OPTIONAL
+      );
     });
   });
 });
